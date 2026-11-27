@@ -34,6 +34,15 @@ fn create_train_artifacts_dir(dir: &Path){
     std::fs::create_dir(dir).ok();
 }
 
+const NUM_EPOCHS: usize = 5;
+const WORDS_VOCAB_EMB_DIM: usize = 128;
+const CHARS_VOCAB_EMB_DIM: usize = 32;
+const CHAR_HIDDEN_DIM: usize = 32;
+const LSTM_HIDDEN_DIM: usize = 128;
+const INPUT_DROPOUT: f64 = 0.2;
+const OUTPUT_DROPOUT: f64 = 0.2;
+
+
 fn main() {
 
     println!("Start training...");
@@ -94,7 +103,7 @@ fn main() {
     let training = SupervisedTraining::<BiLstmCRFModel>::new(artifact_dir, train_dl, test_dl)
         .metrics((LossMetric::new(),))
         .with_default_checkpointers()
-        .num_epochs(5)
+        .num_epochs(NUM_EPOCHS)
         .summary();
 
     println!("Step 5: Initialize model");
@@ -103,10 +112,12 @@ fn main() {
         words_vocab.len(),
         chars_vocab.len(),
         labels_vocab.len(),
-        128,
-        32,
-        32,
-        128
+        WORDS_VOCAB_EMB_DIM,
+        CHARS_VOCAB_EMB_DIM,
+        CHAR_HIDDEN_DIM,
+        LSTM_HIDDEN_DIM,
+        INPUT_DROPOUT,
+        OUTPUT_DROPOUT,
     );
 
     println!("Step 6: Save model config");

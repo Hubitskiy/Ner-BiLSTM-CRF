@@ -267,9 +267,9 @@ impl CRF {
             .expect("emissions to vec");
 
         let mask: Vec<bool> = mask
-            .int()                    // Bool(U8) → Int на устройстве
+            .int()
             .into_data()
-            .convert::<i64>()         // I32/I64 → i64 на CPU
+            .convert::<i64>()
             .try_to_vec::<i64>()
             .expect("mask to vec")
             .into_iter()

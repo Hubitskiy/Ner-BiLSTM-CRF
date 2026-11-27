@@ -1,5 +1,5 @@
 use burn::{
-    nn::{Linear, LinearConfig,BiLstm, BiLstmConfig},
+    nn::{Linear, LinearConfig, Dropout, DropoutConfig, BiLstm, BiLstmConfig},
     train::{TrainStep, TrainOutput, InferenceStep},
     prelude::*,
 };
@@ -28,8 +28,10 @@ pub struct BiLstmCRFModel {
     words_embedding: PaddingEmbedding,
     /// Character-level encoder of each token.
     chars_encoder: NerCharEncoder,
+    input_dropout: Dropout,
     /// Bidirectional LSTM running over the token representations.
     lstm: BiLstm,
+    output_dropout: Dropout,
     /// Projects LSTM outputs to per-label emission scores.
     classifier: Linear,
     /// CRF layer that computes the training loss.
@@ -55,9 +57,11 @@ impl BiLstmCRFModel {
 
         let word_char_mix = Tensor::cat(vec![words_embedding, char_repr], 2);
 
-        let (output, _) = self.lstm.forward(word_char_mix, None);
+        let lstm_input = self.input_dropout.forward(word_char_mix);
+        let (output, _) = self.lstm.forward(lstm_input, None);
 
-        self.classifier.forward(output)
+        let classifier_input = self.output_dropout.forward(output);
+        self.classifier.forward(classifier_input)
     }
 
     /// Computes the CRF negative log-likelihood loss of a batch.
@@ -128,6 +132,10 @@ pub struct BiLstmCRFModelConfig {
     char_hidden_dim: usize,
     /// Hidden size of each direction of the main LSTM.
     lstm_hidden_dim: usize,
+    /// Dropout after concatenating token features.
+    input_dropout_prob: f64,
+    /// Dropout before the emission classifier.
+    output_dropout_prob: f64,
 }
 
 
@@ -161,6 +169,8 @@ impl BiLstmCRFModelConfig {
         BiLstmCRFModel {
             words_embedding: PaddingEmbeddingConfig::new(self.words_vocab_size, self.word_emb_dim, pad_idx).init(device),
             chars_encoder: NerCharEncoderConfig::new(self.char_vocab_size, self.char_emb_dim, self.char_hidden_dim, pad_idx).init(device),
+            input_dropout: DropoutConfig::new(self.input_dropout_prob).init(),
+            output_dropout: DropoutConfig::new(self.output_dropout_prob).init(),
             lstm: BiLstmConfig::new(input_dim, self.lstm_hidden_dim, true).with_batch_first(true).init(device),
             classifier: LinearConfig::new(classifier_input_dim, self.num_labels).init(device),
             crf: CRFConfig::new(self.num_labels).init(device)
